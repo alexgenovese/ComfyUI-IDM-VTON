@@ -7,6 +7,7 @@ CUSTOM_NODES_PATH = os.path.dirname(os.path.abspath(__file__))
 # WEIGHTS_PATH = os.path.join(CUSTOM_NODES_PATH, "models")
 WEIGHTS_PATH = "/comfyui/models/checkpoints/IDM_VTON"
 if not os.path.exists(WEIGHTS_PATH): 
+    print(f"--- create folder Not Exists")
     os.makedirs(WEIGHTS_PATH)
 
 HF_REPO_ID = "yisol/IDM-VTON"
@@ -25,4 +26,6 @@ def ensure_package():
 
 if __name__ == "__main__":
     ensure_package()
+    print(f"---------------Starting snapsnot_download {WEIGHTS_PATH}")
     snapshot_download(repo_id=HF_REPO_ID, local_dir=WEIGHTS_PATH)
+    print(f"---------------End snapsnot_download")
