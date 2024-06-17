@@ -5,7 +5,7 @@ from huggingface_hub import snapshot_download
 
 CUSTOM_NODES_PATH = os.path.dirname(os.path.abspath(__file__))
 # WEIGHTS_PATH = os.path.join(CUSTOM_NODES_PATH, "models")
-WEIGHTS_PATH = "/comfyui/custom_nodes/ComfyUI-IDM-VTON/IDM_VTON"
+WEIGHTS_PATH = "/comfyui/models/checkpoints/IDM_VTON"
 if not os.path.exists(WEIGHTS_PATH): 
     os.makedirs(WEIGHTS_PATH)
 
