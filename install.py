@@ -2,15 +2,13 @@ import sys
 import os.path
 import subprocess
 from huggingface_hub import snapshot_download
-from folder_paths import folder_names_and_paths 
 
 CUSTOM_NODES_PATH = os.path.dirname(os.path.abspath(__file__))
 # WEIGHTS_PATH = os.path.join(CUSTOM_NODES_PATH, "models")
-WEIGHTS_PATH = folder_names_and_paths['checkpoints'][0][0]
-if not os.path.exists(WEIGHTS_PATH + "/IDM_VTON"): 
-    os.makedirs(str(WEIGHTS_PATH) + "/IDM_VTON")
+WEIGHTS_PATH = "/comfyui/custom_nodes/ComfyUI-IDM-VTON/IDM_VTON"
+if not os.path.exists(WEIGHTS_PATH): 
+    os.makedirs(WEIGHTS_PATH)
 
-WEIGHTS_PATH = WEIGHTS_PATH + "/IDM_VTON"
 HF_REPO_ID = "yisol/IDM-VTON"
 
 
