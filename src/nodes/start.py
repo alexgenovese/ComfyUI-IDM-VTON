@@ -25,6 +25,7 @@ from .utils_mask import get_mask_location
 from torchvision import transforms
 from torchvision.transforms.functional import to_pil_image
 from comfy.model_management import get_torch_device
+import folder_paths
 
 DEVICE = get_torch_device()
 MAX_RESOLUTION = 16384
@@ -58,12 +59,13 @@ class IDM_VTON:
                 "width": ("INT", {"default": 768, "min": 0, "max": MAX_RESOLUTION}),
                 "height": ("INT", {"default": 1024, "min": 0, "max": MAX_RESOLUTION}),
                 "denoise_steps": ("INT", {"default": 30}),
-                "is_checked_crop": ("BOOL", {"default": True}), # Use auto-generated mask (Takes 5 seconds)
-                "is_checked": ("BOOL", {"default": True}), # Use auto-crop & resizing
+                "is_checked_crop": ("BOOLEAN", {"default": True}), # Use auto-generated mask (Takes 5 seconds)
+                "is_checked": ("BOOLEAN", {"default": True}), # Use auto-crop & resizing
                 "seed": ("INT", {"default": 42, "min": 0, "max": 0xffffffffffffffff}),
             }
         }
     
+
     RETURN_TYPES = ("IMAGE", "MASK")
     FUNCTION = "start_tryon"
     CATEGORY = "ComfyUI-IDM-VTON"
@@ -71,14 +73,19 @@ class IDM_VTON:
 
     def start_tryon( self, human_img, openpose, garm_img, pose_img, mask_img, height, width, garment_des, negative_prompt, denoise_steps, is_checked_crop, is_checked, seed):
         device = DEVICE
+        print('--------------- check 0 ')
         human_img, openpose, garm_img, pose_img, mask_img = self.preprocess_images(human_img, openpose, garm_img, pose_img, mask_img, height, width)
 
+        print('--------------- check 1 ')
+
         base_path = 'yisol/IDM-VTON'
+        IDM_WEIGHTS_PATH = os.path.join(folder_paths.models_dir,"checkpoints", "IDM-VTON")
 
         unet = UNet2DConditionModel.from_pretrained(
             base_path,
             subfolder="unet",
             torch_dtype=torch.float16,
+            cache_dir = IDM_WEIGHTS_PATH
         )
         unet.requires_grad_(False)
         tokenizer_one = AutoTokenizer.from_pretrained(
@@ -86,43 +93,52 @@ class IDM_VTON:
             subfolder="tokenizer",
             revision=None,
             use_fast=False,
+            cache_dir = IDM_WEIGHTS_PATH
         )
         tokenizer_two = AutoTokenizer.from_pretrained(
             base_path,
             subfolder="tokenizer_2",
             revision=None,
             use_fast=False,
+            cache_dir = IDM_WEIGHTS_PATH
         )
         noise_scheduler = DDPMScheduler.from_pretrained(base_path, subfolder="scheduler")
+
+        print('--------------- check 2 ')
 
         text_encoder_one = CLIPTextModel.from_pretrained(
             base_path,
             subfolder="text_encoder",
             torch_dtype=torch.float16,
+            cache_dir = IDM_WEIGHTS_PATH
         )
         text_encoder_two = CLIPTextModelWithProjection.from_pretrained(
             base_path,
             subfolder="text_encoder_2",
             torch_dtype=torch.float16,
+            cache_dir = IDM_WEIGHTS_PATH
         )
         image_encoder = CLIPVisionModelWithProjection.from_pretrained(
             base_path,
             subfolder="image_encoder",
             torch_dtype=torch.float16,
+            cache_dir = IDM_WEIGHTS_PATH
             )
         vae = AutoencoderKL.from_pretrained(base_path,
                                             subfolder="vae",
                                             torch_dtype=torch.float16,
+                                            cache_dir = IDM_WEIGHTS_PATH
         )
+
+        print('--------------- check 3 ')
 
         # "stabilityai/stable-diffusion-xl-base-1.0",
         UNet_Encoder = UNet2DConditionModel_ref.from_pretrained(
             base_path,
             subfolder="unet_encoder",
             torch_dtype=torch.float16,
+            cache_dir = IDM_WEIGHTS_PATH
         )
-
-        parsing_model = Parsing(0)
 
         UNet_Encoder.requires_grad_(False)
         image_encoder.requires_grad_(False)
@@ -136,6 +152,8 @@ class IDM_VTON:
                         transforms.Normalize([0.5], [0.5]),
                     ]
             )
+
+        print('--------------- check 4 ')
 
         pipe = TryonPipeline.from_pretrained(
                 base_path,
@@ -151,6 +169,8 @@ class IDM_VTON:
                 torch_dtype=torch.float16,
         )
         pipe.unet_encoder = UNet_Encoder
+
+        print('--------------- check 5 ')
 
         pipe.to(DEVICE)
         pipe.unet_encoder.to(DEVICE)
@@ -169,18 +189,22 @@ class IDM_VTON:
         else:
             human_img = human_img.resize((width,height))
 
+        print('--------------- check 6 ')
+
 
         if is_checked:
             keypoints = openpose
-            model_parse, _ = parsing_model(human_img.resize((384,512)))
+            model_parse = pose_img
             mask, mask_gray = get_mask_location('hd', "upper_body", model_parse, keypoints)
-            mask = mask.resize((768,1024))
+            mask = mask.resize((width,height))
         else:
-            mask = pil_to_binary_mask(dict['layers'][0].convert("RGB").resize((768, 1024)))
+            # mask = pil_to_binary_mask(dict['layers'][0].convert("RGB").resize((768, 1024)))
             # mask = transforms.ToTensor()(mask)
             # mask = mask.unsqueeze(0)
-        mask_gray = (1-transforms.ToTensor()(mask)) * tensor_transfrom(human_img)
-        mask_gray = to_pil_image((mask_gray+1.0)/2.0)
+            mask = mask_img
+
+
+        print('--------------- check 7 ')
 
         
         with torch.no_grad():
@@ -258,23 +282,26 @@ class IDM_VTON:
     
 
     def preprocess_images(self, human_img, openpose, garment_img, pose_img, mask_img, height, width):
+        print('--------------- before preprocess start ')
         human_img = human_img.squeeze().permute(2,0,1)
         garment_img = garment_img.squeeze().permute(2,0,1)
         openpose = openpose.squeeze().permute(2,0,1)
         pose_img = pose_img.squeeze().permute(2,0,1)
         mask_img = mask_img.squeeze().permute(2,0,1)
         
+        print('--------------- before preprocess start 1')
         human_img = transforms.functional.to_pil_image(human_img)  
         garment_img = transforms.functional.to_pil_image(garment_img)  
         openpose = transforms.functional.to_pil_image(openpose)  
         pose_img = transforms.functional.to_pil_image(pose_img)  
         mask_img = transforms.functional.to_pil_image(mask_img)
         
+        print('--------------- before preprocess start 2')
         human_img = human_img.convert("RGB").resize((width, height))
         garment_img = garment_img.convert("RGB").resize((width, height))
         openpose = openpose.convert("RGB").resize((width, height))
         mask_img = mask_img.convert("RGB").resize((width, height))
         pose_img = pose_img.convert("RGB").resize((width, height))
-        
+        print('--------------- before preprocess return ')
         return human_img, openpose, garment_img, pose_img, mask_img
     
