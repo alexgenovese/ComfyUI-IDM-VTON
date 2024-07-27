@@ -1,4 +1,8 @@
 .DS_Store
+*.pth
+*.onnx
+*.pkl 
+*.safetensors
 models/*
 !models/.gitkeep
 
