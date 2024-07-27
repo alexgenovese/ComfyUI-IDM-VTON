@@ -1,5 +1,6 @@
 from .nodes.pipeline_loader import PipelineLoader
-from .nodes.idm_vton import IDM_VTON
+# from .nodes.idm_vton import IDM_VTON
+from .nodes.start import IDM_VTON
 
 
 NODE_CLASS_MAPPINGS = {

@@ -28,6 +28,8 @@ class IDM_VTON:
                 "num_inference_steps": ("INT", {"default": 30}),
                 "guidance_scale": ("FLOAT", {"default": 2.0}),
                 "strength": ("FLOAT", {"default": 1.0}),
+                "is_checked_crop": ("BOOL", {"default": True}), # Use auto-generated mask (Takes 5 seconds)
+                "is_checked": ("BOOL", {"default": True}), # Use auto-crop & resizing
                 "seed": ("INT", {"default": 42, "min": 0, "max": 0xffffffffffffffff}),
             }
         }
@@ -54,20 +56,15 @@ class IDM_VTON:
         
         return human_img, garment_img, pose_img, mask_img
     
-    def make_inference(self, pipeline, human_img, garment_img, pose_img, mask_img, height, width, garment_description, negative_prompt, num_inference_steps, strength, guidance_scale, seed):
+    def make_inference(self, pipeline, human_img, garment_img, pose_img, mask_img, height, width, garment_description, negative_prompt, num_inference_steps, strength, guidance_scale, is_checked_crop, is_checked, seed):
         human_img, garment_img, pose_img, mask_img = self.preprocess_images(human_img, garment_img, pose_img, mask_img, height, width)
-        tensor_transfrom = transforms.Compose(
-            [
-                transforms.ToTensor(),
-                transforms.Normalize([0.5], [0.5]),
-            ]
-        )
         
         with torch.no_grad():
             # Extract the images
             with torch.cuda.amp.autocast():
                 with torch.inference_mode():
-                    prompt = "model is wearing " + garment_description
+                    # prompt = "model is wearing " + garment_description
+                    prompt = garment_description
                     (
                         prompt_embeds,
                         negative_prompt_embeds,
@@ -80,7 +77,8 @@ class IDM_VTON:
                         negative_prompt=negative_prompt,
                     )
                                     
-                    prompt = ["a photo of " + garment_description]
+                    # prompt = ["a photo of " + garment_description]
+                    prompt = [garment_description]
                     negative_prompt = [negative_prompt]
                     (
                         prompt_embeds_c,
@@ -109,7 +107,7 @@ class IDM_VTON:
                         text_embeds_cloth=prompt_embeds_c,
                         cloth=garment_tensor,
                         mask_image=mask_img,
-                        image=human_img, 
+                        image=human_img,
                         height=height,
                         width=width,
                         ip_adapter_image=garment_img,
