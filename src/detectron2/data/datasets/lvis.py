@@ -2,9 +2,9 @@
 import logging
 import os
 
-from detectron2.data import DatasetCatalog, MetadataCatalog
-from detectron2.structures import BoxMode
-from detectron2.utils.file_io import PathManager
+from .. import DatasetCatalog, MetadataCatalog
+from ...structures import BoxMode
+from ...utils.file_io import PathManager
 from fvcore.common.timer import Timer
 
 from .builtin_meta import _get_coco_instances_meta

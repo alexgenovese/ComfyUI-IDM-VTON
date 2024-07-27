@@ -1,12 +1,14 @@
-import sys
+import sys, os
 sys.path.append('.')
 sys.path.append('..')
 
+dir_path = os.path.dirname(os.path.realpath(__file__))
+print(f"VTO | Current path {dir_path}")
 
 from PIL import Image
-from src.tryon_pipeline import StableDiffusionXLInpaintPipeline as TryonPipeline
-from src.unet_hacked_garmnet import UNet2DConditionModel as UNet2DConditionModel_ref
-from src.unet_hacked_tryon import UNet2DConditionModel
+from ..src.tryon_pipeline import StableDiffusionXLInpaintPipeline as TryonPipeline
+from ..src.unet_hacked_garmnet import UNet2DConditionModel as UNet2DConditionModel_ref
+from ..src.unet_hacked_tryon import UNet2DConditionModel
 from transformers import (
     CLIPImageProcessor,
     CLIPVisionModelWithProjection,
@@ -17,20 +19,15 @@ from diffusers import DDPMScheduler,AutoencoderKL
 from typing import List
 
 import torch
-import os
 from transformers import AutoTokenizer
-import spaces
 import numpy as np
-from utils_mask import get_mask_location
+from .utils_mask import get_mask_location
 from torchvision import transforms
-import apply_net
-from preprocess.humanparsing.run_parsing import Parsing
-from preprocess.openpose.run_openpose import OpenPose
-from detectron2.data.detection_utils import convert_PIL_to_numpy,_apply_exif_orientation
 from torchvision.transforms.functional import to_pil_image
 from comfy.model_management import get_torch_device
 
 DEVICE = get_torch_device()
+MAX_RESOLUTION = 16384
 
 def pil_to_binary_mask(pil_image, threshold=0):
     np_image = np.array(pil_image)
@@ -51,8 +48,8 @@ class IDM_VTON:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "pipeline": ("PIPELINE",),
                 "human_img": ("IMAGE",),
+                "openpose": ("IMAGE", ),
                 "pose_img": ("IMAGE",),
                 "mask_img": ("IMAGE",),
                 "garm_img": ("IMAGE",),
@@ -72,13 +69,11 @@ class IDM_VTON:
     CATEGORY = "ComfyUI-IDM-VTON"
 
 
-    def start_tryon( self, pipeline, human_img, garm_img, pose_img, mask_img, height, width, garment_des, negative_prompt, denoise_steps, is_checked_crop, is_checked, seed):
+    def start_tryon( self, human_img, openpose, garm_img, pose_img, mask_img, height, width, garment_des, negative_prompt, denoise_steps, is_checked_crop, is_checked, seed):
         device = DEVICE
-        human_img, garm_img, pose_img, mask_img = self.preprocess_images(human_img, garm_img, pose_img, mask_img, height, width)
+        human_img, openpose, garm_img, pose_img, mask_img = self.preprocess_images(human_img, openpose, garm_img, pose_img, mask_img, height, width)
 
         base_path = 'yisol/IDM-VTON'
-        example_path = os.path.join(os.path.dirname(__file__), 'example')
-        pipe = pipeline
 
         unet = UNet2DConditionModel.from_pretrained(
             base_path,
@@ -128,7 +123,6 @@ class IDM_VTON:
         )
 
         parsing_model = Parsing(0)
-        openpose_model = OpenPose(0)
 
         UNet_Encoder.requires_grad_(False)
         image_encoder.requires_grad_(False)
@@ -158,31 +152,26 @@ class IDM_VTON:
         )
         pipe.unet_encoder = UNet_Encoder
 
-        openpose_model.preprocessor.body_estimation.model.to(DEVICE)
         pipe.to(DEVICE)
         pipe.unet_encoder.to(DEVICE)
-
-        # garm_img = garm_img.convert("RGB").resize((768,1024))
-        # human_img_orig = dict["background"].convert("RGB")    
-        human_img_orig = human_img
         
         if is_checked_crop:
-            width, height = human_img_orig.size
+            width, height = human_img.size
             target_width = int(min(width, height * (3 / 4)))
             target_height = int(min(height, width * (4 / 3)))
             left = (width - target_width) / 2
             top = (height - target_height) / 2
             right = (width + target_width) / 2
             bottom = (height + target_height) / 2
-            cropped_img = human_img_orig.crop((left, top, right, bottom))
+            cropped_img = human_img.crop((left, top, right, bottom))
             crop_size = cropped_img.size
-            human_img = cropped_img.resize((768,1024))
+            human_img = cropped_img.resize((width,height))
         else:
-            human_img = human_img_orig.resize((768,1024))
+            human_img = human_img.resize((width,height))
 
 
         if is_checked:
-            keypoints = openpose_model(human_img.resize((384,512)))
+            keypoints = openpose
             model_parse, _ = parsing_model(human_img.resize((384,512)))
             mask, mask_gray = get_mask_location('hd', "upper_body", model_parse, keypoints)
             mask = mask.resize((768,1024))
@@ -193,15 +182,6 @@ class IDM_VTON:
         mask_gray = (1-transforms.ToTensor()(mask)) * tensor_transfrom(human_img)
         mask_gray = to_pil_image((mask_gray+1.0)/2.0)
 
-        human_img_arg = _apply_exif_orientation(human_img.resize((384,512)))
-        human_img_arg = convert_PIL_to_numpy(human_img_arg, format="BGR")
-        
-
-        args = apply_net.create_argument_parser().parse_args(('show', './configs/densepose_rcnn_R_50_FPN_s1x.yaml', './ckpt/densepose/model_final_162be9.pkl', 'dp_segm', '-v', '--opts', 'MODEL.DEVICE', 'cuda'))
-        # verbosity = getattr(args, "verbosity", None)
-        pose_img = args.func(args,human_img_arg)    
-        pose_img = pose_img[:,:,::-1]    
-        pose_img = Image.fromarray(pose_img).resize((768,1024))
         
         with torch.no_grad():
             # Extract the images
@@ -252,14 +232,14 @@ class IDM_VTON:
                             num_inference_steps=denoise_steps,
                             generator=generator,
                             strength = 1.0,
-                            pose_img = pose_img.to(device,torch.float16),
+                            pose_img = pose_img,
                             text_embeds_cloth=prompt_embeds_c.to(device,torch.float16),
-                            cloth = garm_tensor.to(device,torch.float16),
+                            cloth = garm_tensor,
                             mask_image=mask,
                             image=human_img, 
-                            height=1024,
-                            width=768,
-                            ip_adapter_image = garm_img.resize((768,1024)),
+                            height=height,
+                            width=width,
+                            ip_adapter_image = garm_img.resize((height,width)),
                             guidance_scale=2.0,
                         )[0]
 
@@ -269,28 +249,32 @@ class IDM_VTON:
 
                         if is_checked_crop:
                             out_img = images[0].resize(crop_size)        
-                            human_img_orig.paste(out_img, (int(left), int(top)))    
+                            human_img.paste(out_img, (int(left), int(top)))    
                             # return human_img_orig, mask_gray
-                            return (images, )
+                            return (human_img, mask_gray, )
                         else:
                             # return images[0], mask_gray
-                            return (images, )
+                            return (images[0], mask_gray, )
     
-    def preprocess_images(self, human_img, garment_img, pose_img, mask_img, height, width):
+
+    def preprocess_images(self, human_img, openpose, garment_img, pose_img, mask_img, height, width):
         human_img = human_img.squeeze().permute(2,0,1)
         garment_img = garment_img.squeeze().permute(2,0,1)
+        openpose = openpose.squeeze().permute(2,0,1)
         pose_img = pose_img.squeeze().permute(2,0,1)
         mask_img = mask_img.squeeze().permute(2,0,1)
         
         human_img = transforms.functional.to_pil_image(human_img)  
         garment_img = transforms.functional.to_pil_image(garment_img)  
+        openpose = transforms.functional.to_pil_image(openpose)  
         pose_img = transforms.functional.to_pil_image(pose_img)  
         mask_img = transforms.functional.to_pil_image(mask_img)
         
         human_img = human_img.convert("RGB").resize((width, height))
         garment_img = garment_img.convert("RGB").resize((width, height))
+        openpose = openpose.convert("RGB").resize((width, height))
         mask_img = mask_img.convert("RGB").resize((width, height))
         pose_img = pose_img.convert("RGB").resize((width, height))
         
-        return human_img, garment_img, pose_img, mask_img
+        return human_img, openpose, garment_img, pose_img, mask_img
     

@@ -37,17 +37,22 @@ from diffusers.models.embeddings import (
     ImageHintTimeEmbedding,
     ImageProjection,
     ImageTimeEmbedding,
-    PositionNet,
+    #PositionNet,
     TextImageProjection,
     TextImageTimeEmbedding,
     TextTimeEmbedding,
     TimestepEmbedding,
     Timesteps,
 )
-
+# Fix to bug PositionNet - 27/07/2024
+import diffusers
+if diffusers.__version__ >'0.25':
+    from diffusers.models.embeddings import GLIGENTextBoundingboxProjection as PositionNet
+else:
+    from diffusers.models.embeddings import PositionNet
 
 from diffusers.models.modeling_utils import ModelMixin
-from src.unet_block_hacked_tryon import (
+from .unet_block_hacked_tryon import (
     UNetMidBlock2D,
     UNetMidBlock2DCrossAttn,
     UNetMidBlock2DSimpleCrossAttn,
@@ -55,10 +60,10 @@ from src.unet_block_hacked_tryon import (
     get_up_block,
 )
 from diffusers.models.resnet import Downsample2D, FirDownsample2D, FirUpsample2D, KDownsample2D, KUpsample2D, ResnetBlock2D, Upsample2D
-from diffusers.models.transformer_2d import Transformer2DModel
+from diffusers.models.transformers.dual_transformer_2d import DualTransformer2DModel
 import math
 
-from ip_adapter.ip_adapter import Resampler
+from ..ip_adapter.ip_adapter import Resampler
 
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name

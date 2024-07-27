@@ -9,10 +9,10 @@ from itertools import chain
 import numpy as np
 import pycocotools.mask as mask_util
 
-from detectron2.structures import BoxMode
-from detectron2.utils.comm import get_world_size
-from detectron2.utils.file_io import PathManager
-from detectron2.utils.logger import setup_logger
+from ...structures import BoxMode
+from ...utils.comm import get_world_size
+from ...utils.file_io import PathManager
+from ...utils.logger import setup_logger
 from PIL import Image
 
 try:

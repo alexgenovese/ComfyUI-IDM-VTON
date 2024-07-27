@@ -11,12 +11,12 @@ import torch.utils.data as torchdata
 from tabulate import tabulate
 from termcolor import colored
 
-from detectron2.config import configurable
-from detectron2.structures import BoxMode
-from detectron2.utils.comm import get_world_size
-from detectron2.utils.env import seed_all_rng
-from detectron2.utils.file_io import PathManager
-from detectron2.utils.logger import _log_api_usage, log_first_n
+from ..config import configurable
+from ..structures import BoxMode
+from ..utils.comm import get_world_size
+from ..utils.env import seed_all_rng
+from ..utils.file_io import PathManager
+from ..utils.logger import _log_api_usage, log_first_n
 
 from .catalog import DatasetCatalog, MetadataCatalog
 from .common import AspectRatioGroupedDataset, DatasetFromList, MapDataset, ToIterableDataset
