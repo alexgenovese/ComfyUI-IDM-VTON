@@ -50,7 +50,6 @@ class IDM_VTON:
         return {
             "required": {
                 "human_img": ("IMAGE",),
-                "openpose": ("IMAGE", ),
                 "pose_img": ("IMAGE",),
                 "mask_img": ("IMAGE",),
                 "garm_img": ("IMAGE",),
@@ -71,14 +70,15 @@ class IDM_VTON:
     CATEGORY = "ComfyUI-IDM-VTON"
 
 
-    def start_tryon( self, human_img, openpose, garm_img, pose_img, mask_img, height, width, garment_des, negative_prompt, denoise_steps, is_checked_crop, is_checked, seed):
+    def start_tryon( self, human_img, garm_img, pose_img, mask_img, height, width, garment_des, negative_prompt, denoise_steps, is_checked_crop, is_checked, seed):
         device = DEVICE
         print('--------------- check 0 ')
-        human_img, openpose, garm_img, pose_img, mask_img = self.preprocess_images(human_img, openpose, garm_img, pose_img, mask_img, height, width)
+        human_img, garm_img, pose_img, mask_img = self.preprocess_images(human_img, garm_img, pose_img, mask_img, height, width)
 
         print('--------------- check 1 ')
 
-        base_path = 'yisol/IDM-VTON'
+        # base_path = 'yisol/IDM-VTON'
+        base_path = os.path.join(folder_paths.models_dir,"checkpoints", "IDM-VTON")
         IDM_WEIGHTS_PATH = os.path.join(folder_paths.models_dir,"checkpoints", "IDM-VTON")
 
         unet = UNet2DConditionModel.from_pretrained(
@@ -193,8 +193,16 @@ class IDM_VTON:
 
 
         if is_checked:
-            keypoints = openpose
-            model_parse = pose_img
+            from ..preprocess.openpose.run_openpose import OpenPose
+            openpose_model = OpenPose(0)
+            keypoints = openpose_model( human_img.resize((384,512)) )
+            
+            # model_parse = pose_img.resize( (384,512) )
+
+            from ..preprocess.humanparsing.run_parsing import Parsing
+            parsing_model = Parsing(0)
+            model_parse, _ = parsing_model(human_img.resize((384,512)))
+
             mask, mask_gray = get_mask_location('hd', "upper_body", model_parse, keypoints)
             mask = mask.resize((width,height))
         else:
@@ -202,6 +210,8 @@ class IDM_VTON:
             # mask = transforms.ToTensor()(mask)
             # mask = mask.unsqueeze(0)
             mask = mask_img
+        mask_gray = (1-transforms.ToTensor()(mask)) * tensor_transfrom(human_img)
+        mask_gray = to_pil_image((mask_gray+1.0)/2.0)
 
 
         print('--------------- check 7 ')
@@ -247,6 +257,7 @@ class IDM_VTON:
                         
                         pose_img =  tensor_transfrom(pose_img).unsqueeze(0).to(device, torch.float16)
                         garm_tensor =  tensor_transfrom(garm_img).unsqueeze(0).to(device,torch.float16)
+
                         generator = torch.Generator(device).manual_seed(seed) if seed is not None else None
                         images = pipe(
                             prompt_embeds=prompt_embeds.to(device,torch.float16),
@@ -263,7 +274,7 @@ class IDM_VTON:
                             image=human_img, 
                             height=height,
                             width=width,
-                            ip_adapter_image = garm_img.resize((height,width)),
+                            ip_adapter_image = garm_img,
                             guidance_scale=2.0,
                         )[0]
 
@@ -271,37 +282,36 @@ class IDM_VTON:
                         images = [image.permute(1,2,0) for image in images]
                         images = torch.stack(images)
 
-                        if is_checked_crop:
-                            out_img = images[0].resize(crop_size)        
-                            human_img.paste(out_img, (int(left), int(top)))    
-                            # return human_img_orig, mask_gray
-                            return (human_img, mask_gray, )
-                        else:
-                            # return images[0], mask_gray
-                            return (images[0], mask_gray, )
+                        return (images, )
+                        
+                        # if is_checked_crop:
+                        #     out_img = images[0].resize(crop_size)        
+                        #     human_img.paste(out_img, (int(left), int(top)))    
+                        #     # return human_img_orig, mask_gray
+                        #     return (human_img, mask_gray, )
+                        # else:
+                        #     # return images[0], mask_gray
+                        #     return (images[0], mask_gray, )
     
 
-    def preprocess_images(self, human_img, openpose, garment_img, pose_img, mask_img, height, width):
+    def preprocess_images(self, human_img, garment_img, pose_img, mask_img, height, width):
         print('--------------- before preprocess start ')
         human_img = human_img.squeeze().permute(2,0,1)
         garment_img = garment_img.squeeze().permute(2,0,1)
-        openpose = openpose.squeeze().permute(2,0,1)
         pose_img = pose_img.squeeze().permute(2,0,1)
         mask_img = mask_img.squeeze().permute(2,0,1)
         
         print('--------------- before preprocess start 1')
         human_img = transforms.functional.to_pil_image(human_img)  
-        garment_img = transforms.functional.to_pil_image(garment_img)  
-        openpose = transforms.functional.to_pil_image(openpose)  
+        garment_img = transforms.functional.to_pil_image(garment_img) 
         pose_img = transforms.functional.to_pil_image(pose_img)  
         mask_img = transforms.functional.to_pil_image(mask_img)
         
         print('--------------- before preprocess start 2')
         human_img = human_img.convert("RGB").resize((width, height))
         garment_img = garment_img.convert("RGB").resize((width, height))
-        openpose = openpose.convert("RGB").resize((width, height))
         mask_img = mask_img.convert("RGB").resize((width, height))
         pose_img = pose_img.convert("RGB").resize((width, height))
         print('--------------- before preprocess return ')
-        return human_img, openpose, garment_img, pose_img, mask_img
+        return human_img, garment_img, pose_img, mask_img
     
