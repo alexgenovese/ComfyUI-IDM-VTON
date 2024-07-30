@@ -327,4 +327,5 @@ class IDM_VTON:
         return human_img, garment_img, pose_img, mask_img
 
     def callback_update_progressbar(self):
+        print('VTO | Callback update progressbar')
         self.pbar.update(1)
