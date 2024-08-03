@@ -83,7 +83,7 @@ class IDM_VTON:
         #self.callback = SDXLCFGCutoffCallback(cutoff_step_ratio=0.4)
 
         print(f'VTO | Start Try On - Steps: {denoise_steps}')
-        human_img, garm_img, pose_img = self.preprocess_images(human_img, garm_img, pose_img)
+        human_img, garm_img, pose_img = self.preprocess_images(human_img, garm_img, pose_img, width, height)
 
         print('VTO | Preprocessed images completed')
 
