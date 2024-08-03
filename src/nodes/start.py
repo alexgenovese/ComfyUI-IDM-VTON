@@ -33,6 +33,9 @@ DEVICE = get_torch_device()
 MAX_RESOLUTION = 16384
 device = DEVICE
 pbar = None
+base_path = os.path.join(folder_paths.models_dir,"checkpoints", "IDM-VTON")
+IDM_WEIGHTS_PATH = os.path.join(folder_paths.models_dir,"checkpoints", "IDM-VTON")
+
 
 def pil_to_binary_mask(pil_image, threshold=0):
     np_image = np.array(pil_image)
@@ -71,7 +74,7 @@ class IDM_VTON:
         }
     
 
-    RETURN_TYPES = ("IMAGE")
+    RETURN_TYPES = ("IMAGE", )
     FUNCTION = "start_tryon"
     CATEGORY = "ComfyUI-IDM-VTON"
 
@@ -80,9 +83,6 @@ class IDM_VTON:
         human_img, garm_img, pose_img = self.preprocess_images(human_img, garm_img, pose_img, height, width)
 
         print('VTO | Preprocessed images completed')
-
-        base_path = os.path.join(folder_paths.models_dir,"checkpoints", "IDM-VTON")
-        IDM_WEIGHTS_PATH = os.path.join(folder_paths.models_dir,"checkpoints", "IDM-VTON")
 
         unet = UNet2DConditionModel.from_pretrained(
             base_path,
@@ -105,7 +105,7 @@ class IDM_VTON:
             use_fast=False,
             cache_dir = IDM_WEIGHTS_PATH
         )
-        noise_scheduler = DDPMScheduler.from_pretrained(base_path, subfolder="scheduler")
+        noise_scheduler = DDPMScheduler.from_pretrained(base_path, subfolder="scheduler", cache_dir = IDM_WEIGHTS_PATH)
 
         text_encoder_one = CLIPTextModel.from_pretrained(
             base_path,
