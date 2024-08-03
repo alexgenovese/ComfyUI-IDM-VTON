@@ -83,7 +83,7 @@ class IDM_VTON:
         #self.callback = SDXLCFGCutoffCallback(cutoff_step_ratio=0.4)
 
         print(f'VTO | Start Try On - Steps: {denoise_steps}')
-        human_img, garm_img, pose_img = self.preprocess_images(human_img, garm_img, pose_img, width, height)
+        human_img, garm_img, pose_img = self.preprocess_images(human_img, garm_img, pose_img, height, width)
 
         print('VTO | Preprocessed images completed')
 
@@ -300,23 +300,20 @@ class IDM_VTON:
                         #     # return images[0], mask_gray
                         #     return (images[0], mask_gray, )
     
-    def preprocess_images(self, human_img, garment_img, pose_img, mask_img, height, width):
+    def preprocess_images(self, human_img, garment_img, pose_img, height, width):
         human_img = human_img.squeeze().permute(2,0,1)
         garment_img = garment_img.squeeze().permute(2,0,1)
         pose_img = pose_img.squeeze().permute(2,0,1)
-        mask_img = mask_img.squeeze().permute(2,0,1)
         
         human_img = transforms.functional.to_pil_image(human_img)  
         garment_img = transforms.functional.to_pil_image(garment_img) 
         pose_img = transforms.functional.to_pil_image(pose_img)  
-        mask_img = transforms.functional.to_pil_image(mask_img)
         
         human_img = human_img.convert("RGB").resize((width, height))
         garment_img = garment_img.convert("RGB").resize((width, height))
-        mask_img = mask_img.convert("RGB").resize((width, height))
         pose_img = pose_img.convert("RGB").resize((width, height))
         
-        return human_img, garment_img, pose_img, mask_img
+        return human_img, garment_img, pose_img
 
     def callback_update_progressbar(self):
         self.pbar.update(1)
