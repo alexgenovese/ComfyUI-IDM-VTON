@@ -8,6 +8,9 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from parsing_api import onnx_inference
 import torch
 
+import folder_paths
+WEIGHTS_FOLDER = os.path.join(folder_paths.models_dir,"checkpoints", "IDM-VTON")
+
 
 class Parsing:
     def __init__(self, gpu_id: int):
@@ -17,9 +20,9 @@ class Parsing:
         session_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
         session_options.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
         # session_options.add_session_config_entry('gpu_id', str(gpu_id))
-        self.session = ort.InferenceSession(os.path.join(Path(__file__).absolute().parents[2].absolute(), 'ckpt/humanparsing/parsing_atr.onnx'),
+        self.session = ort.InferenceSession(os.path.join(WEIGHTS_FOLDER, 'humanparsing/parsing_atr.onnx'),
                                             sess_options=session_options, providers=['CPUExecutionProvider'])
-        self.lip_session = ort.InferenceSession(os.path.join(Path(__file__).absolute().parents[2].absolute(), 'ckpt/humanparsing/parsing_lip.onnx'),
+        self.lip_session = ort.InferenceSession(os.path.join(WEIGHTS_FOLDER, 'humanparsing/parsing_lip.onnx'),
                                                 sess_options=session_options, providers=['CPUExecutionProvider'])
         
 

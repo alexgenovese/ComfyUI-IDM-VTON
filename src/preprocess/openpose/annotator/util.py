@@ -6,6 +6,9 @@ import os
 from pathlib import Path
 
 # PROJECT_ROOT = Path(__file__).absolute().parents[3].absolute()
+
+#annotator_ckpts_path = os.path.join(PROJECT_ROOT, 'ckpt/openpose/ckpts')
+# print(annotator_ckpts_path)
 import folder_paths
 PROJECT_ROOT = os.path.join(folder_paths.models_dir,"checkpoints", "IDM-VTON")
 annotator_ckpts_path = os.path.join(PROJECT_ROOT, 'openpose', "ckpts")

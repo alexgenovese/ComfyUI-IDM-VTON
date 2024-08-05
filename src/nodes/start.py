@@ -230,7 +230,6 @@ class IDM_VTON:
                             negative_prompt=negative_prompt,
                         )
                                         
-                        prompt = garment_des
                         # negative_prompt = "monochrome, lowres, bad anatomy, worst quality, low quality"
                         if not isinstance(prompt, List):
                             prompt = [prompt] * 1
