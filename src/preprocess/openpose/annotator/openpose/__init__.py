@@ -48,9 +48,9 @@ class OpenposeDetector:
         # hand_modelpath = os.path.join(annotator_ckpts_path, "hand_pose_model.pth")
         # face_modelpath = os.path.join(annotator_ckpts_path, "facenet.pth")
 
-        if not os.path.exists(body_modelpath):
-            from basicsr.utils.download_util import load_file_from_url
-            load_file_from_url(body_model_path, model_dir=annotator_ckpts_path)
+        # if not os.path.exists(body_modelpath):
+        #     from basicsr.utils.download_util import load_file_from_url
+        #     load_file_from_url(body_model_path, model_dir=annotator_ckpts_path)
 
         # if not os.path.exists(hand_modelpath):
         #     from basicsr.utils.download_util import load_file_from_url
